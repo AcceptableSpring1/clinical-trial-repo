@@ -1,0 +1,17 @@
+# this file is @generated
+from datetime import datetime
+
+from .background_task_status import BackgroundTaskStatus
+from .background_task_type import BackgroundTaskType
+from .common import BaseModel
+
+
+class ExpungeAllContentsOut(BaseModel):
+    id: str
+    """The QueueBackgroundTask's ID."""
+
+    status: BackgroundTaskStatus
+
+    task: BackgroundTaskType
+
+    updated_at: datetime

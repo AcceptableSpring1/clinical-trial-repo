@@ -1,0 +1,542 @@
+*from langchain.tools import tool
+from langchain.chat_models import init_chat_model
+from dotenv import load_dotenv
+load_dotenv()
+
+model = init_chat_model("gpt-4o-mini", temperature=0)
+
+
+
+# Define tools
+
+@tool
+def square(a: int ) -> int:
+    """Multiply `a` and `a`.
+
+    Args:
+        a: First int times itself
+    """
+    return a * a
+
+def is_even(a: int ) -> int:
+    """ IF NEEDED the answer from the square tool 
+        gets inserted to see if its 
+        even or odd
+
+    Args:
+        a: Answer of square tool
+    """
+    if a % 2 == 0:
+        return True
+    else:
+        return False
+
+# @tool
+# def multiply(a: int, b: int) -> int:
+#     """Multiply `a` and `b`.
+
+#     Args:
+#         a: First int
+#         b: Second int
+#     """
+#     return a * b
+
+
+# @tool
+# def add(a: int, b: int) -> int:
+#     """Adds `a` and `b`.
+
+#     Args:
+#         a: First int
+#         b: Second int
+#     """
+#     return a + b
+
+
+# @tool
+# def divide(a: int, b: int) -> float:
+#     """Divide `a` and `b`.
+
+#     Args:
+#         a: First int
+#         b: Second int
+#     """
+#     return a / b
+
+
+# Augment the LLM with tools
+tools = [square, is_even]
+tools_by_name = {tool.name: tool for tool in tools}
+model_with_tools = model.bind_tools(tools)
+
+# Step 2: Define state
+ 
+
+
+class MessagesState(TypedDict):
+    messages: Annotated[list[AnyMessage], operator.add]
+    llm_calls: int
+    last_result: any
+    history: Annotated[list[str], operator.add]
+    
+# Step 3: Define model node
+from langchain.messages import SystemMessage
+
+
+def llm_call(state: dict):
+    """LLM decides whether to call a tool or not"""
+
+    return {
+        "messages": [
+            model_with_tools.invoke(
+                [
+                    SystemMessage(
+                        content="You are a helpful assistant tasked with performing arithmetic on a set of inputs."
+                    )
+                ]
+                + state["messages"]
+            )
+        ],
+        "llm_calls": state.get('llm_calls', 0) + 1
+
+    }
+
+
+# Step 4: Define tool node
+
+from langchain.messages import ToolMessage
+
+
+def tool_node(state: dict):
+    """Performs the tool call"""
+
+    history = []
+    result = []
+    for tool_call in state["messages"][-1].tool_calls:
+        tool = tools_by_name[tool_call["name"]]
+        history.append(tool_call["name"])
+        observation = tool.invoke(tool_call["args"])
+        last_result = observation
+        result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
+    return {
+        "messages": result ,
+        "last_result": last_result,
+        "history": history
+        
+        }
+
+
+# Step 5: Define logic to determine whether to end
+
+from typing import Literal
+from langgraph.graph import StateGraph, START, END
+
+
+# Conditional edge function to route to the tool node or end based upon whether the LLM made a tool call
+def should_continue(state: MessagesState) -> Literal["tool_node", END]:
+    """Decide if we should continue the loop or stop based upon whether the LLM made a tool call"""
+
+    messages = state["messages"]
+    last_message = messages[-1]
+
+    # If the LLM makes a tool call, then perform an action
+    if last_message.tool_calls:
+        return "tool_node"
+
+    # Otherwise, we stop (reply to the user)
+    return END
+
+# Step 6: Build agent
+
+# Build workflow
+agent_builder = StateGraph(MessagesState)
+
+# Add nodes
+agent_builder.add_node("llm_call", llm_call)
+agent_builder.add_node("tool_node", tool_node)
+
+# Add edges to connect nodes
+agent_builder.add_edge(START, "llm_call")
+agent_builder.add_conditional_edges(
+    "llm_call",
+    should_continue,
+    ["tool_node", END]
+)
+agent_builder.add_edge("tool_node", "llm_call")
+
+# Compile the agent
+agent = agent_builder.compile()
+
+# Invoke
+from langchain.messages import HumanMessage
+messages = [HumanMessage(content="is the square of 18 even")]
+messages = agent.invoke({"messages": messages})
+for m in messages["messages"]:
+    m.pretty_print()
+print(messages["last_result"])
+print(messages["history"])
+
+
+from langchain.tools import tool
+from langchain.chat_models import init_chat_model
+from dotenv import load_dotenv
+from typing_extensions import TypedDict, Annotated
+from typing import Any
+from langchain.messages import AnyMessage
+from langchain.messages import HumanMessage, AIMessage, SystemMessage
+from langchain.messages import ToolMessage
+from typing import Literal
+from langgraph.graph import StateGraph, START, END
+import operator
+
+load_dotenv()
+
+model = init_chat_model("gpt-4o-mini", temperature=0)
+
+@tool
+def search_protocol(query: str) -> str:
+    """ use this tool when you need help finding help for finding the answer for the clinical trial protocol
+    
+    Args: 
+        query: input with string, will input 
+        needed medicine for this parameter
+    """
+
+    return f"Protocol section 3.2: The dosage for {query} is 10mg twice daily."
+
+tools = [search_protocol]
+tools_by_name = {tool.name: tool for tool in tools}
+model_with_tools = model.bind_tools(tools)
+
+class MessageState(TypedDict):
+    messages : Annotated[list[AnyMessage], operator.add]
+    call_to_llm : int
+
+def chat_call(state: dict):
+    """call to llm to decide what
+    tool is being used"""
+
+    return {
+        "messages":[
+            model_with_tools.invoke(
+                [
+
+                    SystemMessage(
+                        content= "You are help for a clinical trial protocol. You will receive a question and then use a document to search this question and provide and answer"
+                    )   
+                ]
+                + state["messages"]
+            )    
+        ], 
+        "call_to_llm": state.get('call_to_llm', 0 )+ 1
+    } 
+
+def tool_node(state:dict):
+    """Performs tool call"""
+    result= []
+    for tool_call in state["messages"][-1].tool_calls:
+        tool = tools_by_name[tool_call["name"]]
+        observation = tool.invoke(tool_call["args"])
+        result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
+    return{
+            "messages": result
+        }
+    
+def should_continue(state:MessageState) -> Literal["tool_node", END]:
+
+    """Decide whether to continue the loop or stop based upon whether the LLM made a tool call"""
+
+    messages = state["messages"]
+    last_message = messages[-1]
+
+    if last_message.tool_calls:
+        return "tool_node"
+    
+    return END
+
+
+agent_builder = StateGraph(MessageState)
+agent_builder.add_node("chat_call",chat_call)
+agent_builder.add_node("tool_node" ,tool_node)
+
+agent_builder.add_edge(START, "chat_call")
+agent_builder.add_conditional_edges(
+    "chat_call", 
+    should_continue,
+    ["tool_node",END]
+)
+agent_builder.add_edge("tool_node", "chat_call")
+
+agent = agent_builder.compile()
+
+messages = [HumanMessage(content="What is the dosage for patients with hypertension?")]
+messages = agent.invoke({"messages":messages})
+for m in messages["messages"]:
+    m.pretty_print()
+-------------------------------
+
+class MessageState(TypedDict):
+    messages :Annotated[list[AnyMessage], operator.add]
+
+def node_a(state:dict):
+
+    messages = state["messages"][-1].content + "[Processed by A]"
+    return {
+       "messages": [HumanMessage(content= messages)]
+    }
+    
+def node_b(state:dict):
+    messages = state["messages"][-1].content + "[Processed by B]"
+
+    return { 
+        "messages": [HumanMessage(content=messages)]
+    }
+def node_c(state:dict):
+    messages = state["messages"][-1].content + "[URGENT - Escalated]"
+    
+    return {
+        "messages": [HumanMessage(content=messages)]
+    }
+
+def should_continue(state:MessageState):
+    messages = state["messages"][-1].content
+
+    if "urgent" in messages:
+        return "node_c"
+    return END
+
+agent_builder = StateGraph(MessageState)
+agent_builder.add_node("node_a", node_a)
+agent_builder.add_node("node_b", node_b)
+agent_builder.add_node("node_c", node_c)
+
+
+agent_builder.add_edge(START, "node_a")
+agent_builder.add_edge("node_a", "node_b")
+agent_builder.add_conditional_edges(
+    "node_b",
+    should_continue,
+    ["node_c", END]
+
+)
+
+agent = agent_builder.compile()
+
+messages = [HumanMessage(content="Hi urgent")]
+messages = agent.invoke({"messages":messages})
+
+for m in messages["messages"]:
+    m.pretty_print()
+---------------------
+
+
+class MessageState(TypedDict):
+    messages: Annotated[list[AnyMessage], operator.add]
+    sub_questions : list[str]
+    results: Annotated[list[str], operator.add]
+
+def decompose(state: dict):
+    messages = state["messages"][-1].content 
+
+    qsplit = messages.split('?', maxsplit = 1)
+
+    return {
+        "sub_questions": qsplit 
+    }
+
+def retrieve_a(state:dict):
+    q_one = state["sub_questions"][0]
+
+    return{
+        "results": [q_one]
+    }
+def retrieve_b(state:dict):
+    q_two = state["sub_questions"][1]
+
+    return{
+        "results": [q_two]
+    }
+
+agent_builder = StateGraph(MessageState)
+agent_builder.add_node("decompose", decompose)
+agent_builder.add_node("retrieve_a",retrieve_a)
+agent_builder.add_node("retrieve_b", retrieve_b)
+
+agent_builder.add_edge(START,"decompose")
+agent_builder.add_edge("decompose","retrieve_a")
+agent_builder.add_edge("decompose","retrieve_b")
+agent_builder.add_edge("retrieve_a", END)
+agent_builder.add_edge("retrieve_b", END)
+
+agent = agent_builder.compile()
+messages = [HumanMessage(content="Whats the weather like in SoCal? Whats a nice city in Socal?")]
+messages = agent.invoke({"messages":messages})
+
+for m in messages["results"]:
+    print(m)
+----------------------------
+
+
+class MessageState(TypedDict):
+    messages: Annotated[list[AnyMessage], operator.add]
+    sub_questions : list[str]
+    results: Annotated[list[str], operator.add]
+
+def decompose(state: dict):
+    messages = state["messages"][-1].content 
+
+    qsplit = messages.split('?', maxsplit = 1)
+
+    return {
+        "sub_questions": qsplit
+    }
+def continue_decompose(state:dict):
+     
+     return [
+        Send("retrieve_a", {"sub_questions": state["sub_questions"][0]}),
+        Send("retrieve_b", {"sub_questions": state["sub_questions"][1]})
+    ]
+
+def retrieve_a(state:dict):
+    q_one = state["sub_questions"]
+
+    return{
+        "results": [q_one]
+    }
+def retrieve_b(state:dict):
+    q_two = state["sub_questions"]
+
+    return{
+        "results": [q_two]
+    }
+
+agent_builder = StateGraph(MessageState)
+agent_builder.add_node("decompose", decompose)
+agent_builder.add_node("retrieve_a",retrieve_a)
+agent_builder.add_node("retrieve_b", retrieve_b)
+
+agent_builder.add_edge(START,"decompose")
+agent_builder.add_conditional_edges("decompose",continue_decompose, ["retrieve_a","retrieve_b"])
+agent_builder.add_edge("retrieve_a",END)
+agent_builder.add_edge("retrieve_b", END)
+
+agent = agent_builder.compile()
+messages = [HumanMessage(content="Whats the weather like in SoCal? Whats a nice city in Socal?")]
+messages = agent.invoke({"messages":messages})
+
+for m in messages["results"]:
+    print(m)
+-------------
+load_dotenv()
+
+
+client = OpenAI()
+pc = Pinecone()
+index = pc.Index(host="https://clinical-trial-test-two-4pv7yax.svc.aped-4627-b74a.pinecone.io")
+
+model = init_chat_model("gpt-4o-mini", temperature=0)
+
+class MessageState(TypedDict):
+    messages: Annotated[list[AnyMessage], operator.add]
+    sub_questions : list[str]
+    results: Annotated[list[str], operator.add]
+    synthesis: list[str]
+
+def decompose(state: dict):
+    messages = state["messages"][-1].content 
+
+    qsplit = model.invoke(
+        [
+        SystemMessage(content= "When you receive whatever question you get, you are to determine how many parts there are. If a question has multiple parts than you are to break each one down into it own question and add it to the list. For example if I say 'When are leaving and how old are you?', thats 2 questions. Additionally, return each sub-question on a new line with nothing else. number each question"
+                      
+                      ), HumanMessage(content=messages)
+    ]
+
+    ) 
+
+    qsplit = [q for q in qsplit.content.split('\n') if q.strip()]
+    
+    return {
+        "sub_questions": qsplit
+    }
+
+def continue_decompose(state:dict):
+     
+    return [
+         
+        Send("retrieve", {"sub_questions": sq}) for sq in state["sub_questions"]
+     ]
+
+def retrieve(state:dict):
+
+    pineresults=[]
+
+    q_one = client.embeddings.create(input=state["sub_questions"], model="text-embedding-3-small").data[0].embedding 
+
+    query_results = index.query(
+        namespace="__default__",
+        vector= q_one,
+        top_k=3,
+        include_metadata=True,
+        include_values=False
+    ) 
+    
+    for x in query_results["matches"]:
+        pineresults.append(x["metadata"]["text"])
+
+    
+    return {
+        "results": pineresults
+    }
+
+    
+
+def synthesize(state:dict):
+    combined = model.invoke(
+        [
+           SystemMessage(content= "You are going to recieve 1 or more questions. You are to make coherent response answering all of the questions you receive. "), HumanMessage(content= ' | '.join(state["results"]))
+    ]
+    )
+
+    return{
+        "synthesis":combined.content
+    }
+
+agent_builder = StateGraph(MessageState)
+agent_builder.add_node("decompose", decompose)
+agent_builder.add_node("retrieve",retrieve)
+agent_builder.add_node("synthesize", synthesize)
+
+agent_builder.add_edge(START,"decompose")
+agent_builder.add_conditional_edges("decompose",continue_decompose, ["retrieve"])
+agent_builder.add_edge("retrieve","synthesize")
+agent_builder.add_edge("synthesize", END)
+
+agent = agent_builder.compile()
+
+# messages = agent.invoke({"messages":messages})
+
+class ParentGraph(TypedDict):
+    messagestwo: Annotated[list[AnyMessage], operator.add]
+    final: list[str]
+
+def parent_node(state:dict):
+    otherdata = agent.invoke({"messages": state["messagestwo"]})
+
+    return{
+        "final": otherdata["synthesis"]
+    }
+
+agenttwo_builder = StateGraph(ParentGraph)
+agenttwo_builder.add_node("parent_node",parent_node)
+agenttwo_builder.add_edge(START, "parent_node")
+agenttwo_builder.add_edge("parent_node", END)
+
+agent_two = agenttwo_builder.compile()
+messages = [HumanMessage(content="How many participants were in the study? Were there any adverse events?")]
+messages = agent_two.invoke({"messagestwo": messages})
+
+print(messages["final"])
+
+
+
