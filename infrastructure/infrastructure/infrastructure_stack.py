@@ -25,15 +25,6 @@ class InfrastructureStack(Stack):
         repo = ecr.Repository.from_repository_name(self, "ClinicalTrialRepo", "clinical-trial-assistant")
         vpc = ec2.Vpc(self, "ClinicalTrialVpc", max_azs=2)
         cluster = ecs.Cluster(self, "ClinicalTrialCluster", vpc=vpc)
-
-    #     s3.Bucket(self, "Bucket",
-    #         auto_delete_objects = True,
-    #         block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
-    #         bucket_name= "clinica-trial-538565434143",
-    #         versioned=True,
-    #         removal_policy=RemovalPolicy.DESTROY
-    # )
-        
       
         service = ecs_patterns.ApplicationLoadBalancedFargateService(self, "Service",
             cluster=cluster,
