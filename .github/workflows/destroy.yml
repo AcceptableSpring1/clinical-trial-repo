@@ -1,0 +1,24 @@
+name: Destroy Infra
+run-name: New Code submitted
+on: workflow_dispatch
+permissions:
+  id-token: write
+  contents: read   
+jobs:
+  InfraDestruction:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Install CDK Python dependencies
+        working-directory: infrastructure
+        run: pip install -r requirements.txt
+      - name: CDK Destroy
+        working-directory: infrastructure
+        run: cdk destroy --force
