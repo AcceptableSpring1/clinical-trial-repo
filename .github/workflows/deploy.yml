@@ -1,0 +1,41 @@
+name: Clinical Trial GHA
+run-name: New Code submitted
+on:
+  push:
+    branches:
+      - main
+permissions:
+  id-token: write
+  contents: read   
+jobs:
+  NewImageCreation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+        with:
+            role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+            aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'false'
+      - name: Building Docker image
+        run: docker build --platform linux/amd64 -t 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest . 
+      - name: Pushing Image to ECR 
+        run: docker push 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest
+      - name: Node download
+        run: npm install -g aws-cdk
+      - name: Install CDK Python dependencies
+        working-directory: infrastructure
+        run: pip install -r requirements.txt
+      - name: CDK Synthesize/validation
+        working-directory: infrastructure
+        run: cdk synth
+      - name: CDK deploy
+        working-directory: infrastructure
+        run: cdk deploy --require-approval never
+      
