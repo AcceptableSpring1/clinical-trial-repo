@@ -1,27 +1,52 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: clinical-trial-assistant
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: clinical-trial-assistant
-  template:
-    metadata:
-      labels:
-        app: clinical-trial-assistant
-    spec:
-      containers:
-      - name: clinical-trial-assistant
-        image: 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest
-        envFrom:
-        - secretRef:
-            name: clinical-trial-secrets
-        ports:
-        - containerPort: 8000
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "256m"
-        
+name: Clinical Trial GHA
+run-name: New Code submitted
+on:
+  push:
+    branches:
+      - main
+permissions:
+  id-token: write
+  contents: read   
+jobs:
+  NewImageCreation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'false'
+      - name: Build Docker image
+        run: docker build --platform linux/amd64 -t 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest .
+      - name: Push to ECR
+        run: docker push 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest
+      - name: Install CDK CLI
+        run: npm install -g aws-cdk
+      - name: Install CDK Python dependencies
+        working-directory: infrastructure
+        run: pip install -r requirements.txt
+      - name: CDK Synth
+        working-directory: infrastructure
+        run: cdk synth
+      - name: CDK Deploy
+        working-directory: infrastructure
+        run: cdk deploy --require-approval never
+      - name: Update kubeconfig
+        working-directory: infrastructure
+        run: |
+          CLUSTER_NAME=$(aws eks list-clusters --region us-east-1 --query "clusters[0]" --output text)
+          aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
+      - name: Create Kubernetes secrets
+        run: python3 scripts/create_k8s_secret.py
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
