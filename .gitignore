@@ -13,3 +13,4 @@ __pycache__
 infrastructure/.venv
 uv.lock
 .python-version
+k8s/secrets.yml

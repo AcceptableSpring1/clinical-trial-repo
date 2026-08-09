@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clinical-trial-assistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: clinical-trial-assistant
+  template:
+    metadata:
+      labels:
+        app: clinical-trial-assistant
+    spec:
+      containers:
+      - name: clinical-trial-assistant
+        image: 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest
+        envFrom:
+        - secretRef:
+            name: clinical-trial-secrets
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "256m"
+        

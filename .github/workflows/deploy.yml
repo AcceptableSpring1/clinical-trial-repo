@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: configure aws credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -24,19 +24,26 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
         with:
           mask-password: 'false'
-      - name: Building Docker image
-        run: docker build --platform linux/amd64 -t 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest . 
-      - name: Pushing Image to ECR 
+      - name: Build Docker image
+        run: docker build --platform linux/amd64 -t 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest .
+      - name: Push to ECR
         run: docker push 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest
-      - name: Node download
+      - name: Install CDK CLI
         run: npm install -g aws-cdk
       - name: Install CDK Python dependencies
         working-directory: infrastructure
         run: pip install -r requirements.txt
-      - name: CDK Synthesize/validation
+      - name: CDK Synth
         working-directory: infrastructure
         run: cdk synth
-      - name: CDK deploy
+      - name: CDK Deploy
         working-directory: infrastructure
         run: cdk deploy --require-approval never
-      
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ClinicalTrialCluster7DEEA785-fc43b9a566b240a3a7a743c7437ad78c --region us-east-1
+      - name: Create Kubernetes secrets
+        run: python3 scripts/create_k8s_secret.py
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
