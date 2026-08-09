@@ -40,7 +40,10 @@ jobs:
         working-directory: infrastructure
         run: cdk deploy --require-approval never
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ClinicalTrialCluster7DEEA785-fc43b9a566b240a3a7a743c7437ad78c --region us-east-1
+        working-directory: infrastructure
+        run: |
+          CLUSTER_NAME=$(aws eks list-clusters --region us-east-1 --query "clusters[0]" --output text)
+          aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
       - name: Create Kubernetes secrets
         run: python3 scripts/create_k8s_secret.py
       - name: Apply Kubernetes manifests
