@@ -40,10 +40,22 @@ jobs:
         working-directory: infrastructure
         run: cdk deploy --require-approval never
       - name: Update kubeconfig
-        working-directory: infrastructure
         run: |
           CLUSTER_NAME=$(aws eks list-clusters --region us-east-1 --query "clusters[0]" --output text)
+          echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
           aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
+      - name: Grant EKS access to GitHub Actions user
+        run: |
+          aws eks create-access-entry \
+            --cluster-name ${{ env.CLUSTER_NAME }} \
+            --principal-arn arn:aws:iam::538565434143:user/zay1 \
+            --region us-east-1 || true
+          aws eks associate-access-policy \
+            --cluster-name ${{ env.CLUSTER_NAME }} \
+            --principal-arn arn:aws:iam::538565434143:user/zay1 \
+            --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+            --access-scope type=cluster \
+            --region us-east-1 || true
       - name: Create Kubernetes secrets
         run: python3 scripts/create_k8s_secret.py
       - name: Apply Kubernetes manifests
