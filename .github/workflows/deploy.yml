@@ -44,6 +44,14 @@ jobs:
           CLUSTER_NAME=$(aws eks list-clusters --region us-east-1 --query "clusters[0]" --output text)
           echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
           aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
+      - name: Update cluster auth mode
+        run: |
+            aws eks update-cluster-config \
+            --name ${{ env.CLUSTER_NAME }} \
+            --access-config authenticationMode=API_AND_CONFIG_MAP \
+            --region us-east-1
+            echo "Waiting for cluster config update..."
+            sleep 30    
       - name: Grant EKS access to GitHub Actions user
         run: |
           aws eks create-access-entry \
