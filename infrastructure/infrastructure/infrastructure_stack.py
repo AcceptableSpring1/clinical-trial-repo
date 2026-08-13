@@ -32,3 +32,6 @@ class InfrastructureStack(Stack):
             ),
             kubectl_layer=kubectl_v31.KubectlV31Layer(self, "KubectlLayer")
         )
+
+        zay1_user = iam.User.from_user_name(self, "Zay1User", "zay1")
+        cluster.aws_auth.add_user_mapping(zay1_user, groups=["system:masters"])
