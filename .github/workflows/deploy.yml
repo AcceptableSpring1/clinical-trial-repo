@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - ecs
 permissions:
   id-token: write
   contents: read   
