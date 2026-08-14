@@ -39,7 +39,7 @@ class InfrastructureStack(Stack):
                     "LANGFUSE_SECRET_KEY": ecs.Secret.from_secrets_manager(secret, "LANGFUSE_SECRET_KEY"),
                     "LANGFUSE_PUBLIC_KEY": ecs.Secret.from_secrets_manager(secret, "LANGFUSE_PUBLIC_KEY"),
                     "LANGFUSE_BASE_URL": ecs.Secret.from_secrets_manager(secret, "LANGFUSE_BASE_URL"),
-                    "AWS_DEFAULT_REGION": ecs.Secret.from_secrets_manager(secret, "AWS_DEFAULT_REGION"),
+                    "AWS_DEFAULT_REGION": ecs.Secret.from_secrets_manager(secret, "AWS_REGION_NAME"),
                     "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": ecs.Secret.from_secrets_manager(secret, "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"),
                     "CLERK_SECRET_KEY": ecs.Secret.from_secrets_manager(secret, "CLERK_SECRET_KEY"),
                     "CLERK_JWKS_URL": ecs.Secret.from_secrets_manager(secret, "CLERK_JWKS_URL"),
