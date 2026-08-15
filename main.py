@@ -3,9 +3,6 @@ from routes import ingestion, query, webhooks
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-app.include_router(ingestion.router)
-app.include_router(query.router)
-app.include_router(webhooks.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,3 +14,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(ingestion.router)
+app.include_router(query.router)
+app.include_router(webhooks.router)
