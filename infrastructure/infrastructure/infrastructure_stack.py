@@ -70,3 +70,9 @@ class InfrastructureStack(Stack):
                 resources=["*"]
             )
         )
+        service.task_definition.task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+                resources=["*"]
+            )
+        )
