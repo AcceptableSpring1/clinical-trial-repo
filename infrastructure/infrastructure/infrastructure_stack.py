@@ -6,6 +6,7 @@ from aws_cdk import (
     aws_iam as iam,
     aws_ecs as ecs,
     aws_ecs_patterns as ecs_patterns,
+    aws_certificatemanager as acm
 )
 from constructs import Construct
 
@@ -24,6 +25,11 @@ class InfrastructureStack(Stack):
         vpc = ec2.Vpc(self, "ClinicalTrialVpc", max_azs=2)
         
         cluster = ecs.Cluster(self, "ClinicalTrialCluster", vpc=vpc)
+        
+        certificate = acm.Certificate(self, "ApiCertificate",
+            domain_name="api.zaysprojectsite.com",
+            validation=acm.CertificateValidation.from_dns()
+        )
 
         service = ecs_patterns.ApplicationLoadBalancedFargateService(self, "Service",
             cluster=cluster,
