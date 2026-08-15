@@ -24,7 +24,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
         with:
-          mask-password: 'false'
+          mask-password: 'true'
       - name: Build Docker image
         run: docker build --platform linux/amd64 -t 538565434143.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-assistant:latest .
       - name: Push to ECR
