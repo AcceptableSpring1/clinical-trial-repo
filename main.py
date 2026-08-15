@@ -6,15 +6,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173",
-                   "https://clinical-trial-frontend.vercel.app",
-                   "https://clinical.zaysprojectsite.com"
-                   ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_origins=["*"]
-)
+    )
 
 app.include_router(ingestion.router)
 app.include_router(query.router)
