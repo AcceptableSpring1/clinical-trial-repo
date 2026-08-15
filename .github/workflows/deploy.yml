@@ -40,4 +40,9 @@ jobs:
       - name: CDK Deploy
         working-directory: infrastructure
         run: cdk deploy --require-approval never
-     
+      - name: Force ECS redeployment
+        run: |
+          CLUSTER=$(aws ecs list-clusters --region us-east-1 --query "clusterArns[0]" --output text | xargs basename)
+          SERVICE=$(aws ecs list-services --cluster $CLUSTER --region us-east-1 --query "serviceArns[0]" --output text | xargs basename)
+          aws ecs update-service --cluster $CLUSTER --service $SERVICE --force-new-deployment --region us-east-1
+          

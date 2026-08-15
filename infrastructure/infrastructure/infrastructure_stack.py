@@ -63,3 +63,10 @@ class InfrastructureStack(Stack):
         )
 
         secret.grant_read(service.task_definition.execution_role)
+
+        service.task_definition.task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["s3:*"],
+                resources=["*"]
+            )
+        )
