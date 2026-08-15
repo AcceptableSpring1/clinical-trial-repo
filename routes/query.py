@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from pydantic import BaseModel
 from graph.pipeline import agent
 from langfuse.langchain import CallbackHandler
@@ -14,8 +15,6 @@ import json
 load_dotenv()
 s3 = boto3.client('s3')
 
-
-
 clerk_config = ClerkConfig(jwks_url=os.getenv("CLERK_JWKS_URL"))
 clerk_guard = ClerkHTTPBearer(clerk_config)
 
@@ -25,6 +24,11 @@ langfuse_handler = CallbackHandler()
 class UserSide(BaseModel):
     trial_id: str
     question: str
+
+
+@router.options("/query")
+async def options_query():
+    return Response(status_code=200)
 
 @router.post("/query")
 async def user_side(
