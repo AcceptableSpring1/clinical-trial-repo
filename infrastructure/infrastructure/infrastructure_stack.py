@@ -25,7 +25,7 @@ class InfrastructureStack(Stack):
         vpc = ec2.Vpc(self, "ClinicalTrialVpc", max_azs=2)
         
         cluster = ecs.Cluster(self, "ClinicalTrialCluster", vpc=vpc)
-        
+
         certificate = acm.Certificate(self, "ApiCertificate",
             domain_name="api.zaysprojectsite.com",
             validation=acm.CertificateValidation.from_dns()
@@ -36,6 +36,9 @@ class InfrastructureStack(Stack):
             memory_limit_mib=1024,
             desired_count=1,
             cpu=512,
+            certificate=certificate,
+            redirect_http=True,
+            listener_port=443,            
             task_image_options=ecs_patterns.ApplicationLoadBalancedTaskImageOptions(
                 image=ecs.ContainerImage.from_ecr_repository(repo),
                 container_port=8000,
