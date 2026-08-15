@@ -54,8 +54,7 @@ class InfrastructureStack(Stack):
                     "CLERK_JWKS_URL": ecs.Secret.from_secrets_manager(secret, "CLERK_JWKS_URL"),
                     "CLERK_WEBHOOK_SECRET": ecs.Secret.from_secrets_manager(secret, "CLERK_WEBHOOK_SECRET"),
                 }
-            ),
-            listener_port=80,
+            )
         )
 
         service.target_group.configure_health_check(
