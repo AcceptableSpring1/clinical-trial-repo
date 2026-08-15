@@ -1,16 +1,26 @@
 from fastapi import FastAPI
 from routes import ingestion, query, webhooks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173", 
+        "https://clinical-trial-frontend.vercel.app", 
+        "https://clinical.zaysprojectsite.com" 
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     )
+@app.middleware("http")
+async def log_origin(request: Request, call_next):
+    print(f"Origin header: {request.headers.get('origin')}")
+    response = await call_next(request)
+    return response
 
 app.include_router(ingestion.router)
 app.include_router(query.router)
