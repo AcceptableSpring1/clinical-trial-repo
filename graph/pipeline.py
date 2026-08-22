@@ -35,13 +35,15 @@ async def decompose(state:dict):
         )
     except Exception as e:
         print(f"Decompose failed: {e}")
+        
         return{
             "sub_question":["Error: could not process the question"]
         }
 
-
+    sub_questions = [q for q in qsplit.choices[0].message.content.split('\n') if q.strip()]
+    print(f"Sub-questions: {sub_questions}")
     return {
-        "sub_question": [q for q in qsplit.choices[0].message.content.split('\n') if q.strip()],
+        "sub_question": sub_questions,
         "llm_calls":state.get('llm_calls', 0) + 1
         }
         
@@ -63,7 +65,7 @@ async def retrieve(state:dict):
             the_query = await idx.query(
                 namespace=state["trial_id"],
                 vector=q_one, 
-                top_k=3,
+                top_k=6,
                 include_metadata=True,
                 include_values=False
         )
@@ -109,6 +111,7 @@ async def synthesize(state:dict):
     }
 
 def continue_decompose(state:MessageState):
+     
      return[
         Send('retrieve', {"sub_question":q, "trial_id": state["trial_id"]}) for q in state["sub_question"]
      ]
