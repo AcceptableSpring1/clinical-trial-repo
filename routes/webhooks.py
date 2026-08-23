@@ -17,7 +17,9 @@ async def clerk_webhook(request: Request, response: Response):
  
     try:
         wh = Webhook(os.getenv("CLERK_WEBHOOK_SECRET"))
-        msg = wh.verify(payload, headers)
+        msg = wh.verify(payload, dict(headers))
+        print(f"msg value: {msg}")
+        print(f"msg type: {type(msg)}")
 
         if msg["type"] == "user.created":
             user_id = msg["data"]["id"]
