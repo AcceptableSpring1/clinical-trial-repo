@@ -10,9 +10,10 @@ router = APIRouter()
 
 @router.post("/webhooks/clerk")
 async def clerk_webhook(request: Request, response: Response):
-
     headers = request.headers
     payload = await request.body()
+    print(f"Headers: {dict(headers)}")
+    print(f"Payload length: {len(payload)}")
  
     try:
         wh = Webhook(os.getenv("CLERK_WEBHOOK_SECRET"))
