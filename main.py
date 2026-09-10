@@ -16,11 +16,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
     )
-@app.middleware("http")
-async def log_origin(request: Request, call_next):
-    print(f"Origin header: {request.headers.get('origin')}")
-    response = await call_next(request)
-    return response
 
 app.include_router(ingestion.router)
 app.include_router(query.router)

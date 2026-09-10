@@ -22,7 +22,9 @@ class InfrastructureStack(Stack):
         
         repo = ecr.Repository.from_repository_name(self, "ClinicalTrialRepo", "clinical-trial-assistant")
         
-        vpc = ec2.Vpc(self, "ClinicalTrialVpc", max_azs=2)
+        vpc = ec2.Vpc(self, "ClinicalTrialVpc", 
+                      max_azs=2,
+                      nat_gateways=1)
         
         cluster = ecs.Cluster(self, "ClinicalTrialCluster", vpc=vpc)
 
